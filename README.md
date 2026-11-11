@@ -41,6 +41,12 @@ docker compose up --build
 
 A API usa Basic Auth. A aplicação web possui um seletor de usuário no menu lateral para alternar o contexto visual do workspace.
 
+## Tela de login e análise de perfis
+
+Ao abrir o frontend, a primeira tela é o login do workspace. O perfil pode ser selecionado em uma lista e a senha permanece visível no campo para facilitar a análise local dos fluxos de autenticação. O botão de entrada valida a credencial escolhida contra a API usando Basic Auth.
+
+Depois do login, o painel mostra os módulos disponíveis para a identidade selecionada. A comparação entre os perfis permite verificar quais áreas, empresas e informações ficam acessíveis em cada contexto.
+
 ## DBeaver
 
 O PostgreSQL está disponível apenas localmente:
