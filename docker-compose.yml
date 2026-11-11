@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:12-alpine
+    environment:
+      POSTGRES_DB: nexuslegal
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: nexuslegal_postgres
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - nexuslegal_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U postgres -d nexuslegal"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  backend:
+    build: ./backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/nexuslegal
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: nexuslegal_postgres
+    ports:
+      - "127.0.0.1:8085:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      notifications:
+        condition: service_started
+  frontend:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:3005:3000"
+    depends_on:
+      - backend
+  notifications:
+    build: ./notifications
+    ports:
+      - "127.0.0.1:8095:8090"
+volumes:
+  nexuslegal_db:
