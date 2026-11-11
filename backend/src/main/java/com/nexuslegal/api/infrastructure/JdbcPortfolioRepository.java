@@ -1,15 +1,83 @@
 package com.nexuslegal.api.infrastructure;
-import com.nexuslegal.api.domain.PortfolioRepository; import org.springframework.jdbc.core.JdbcTemplate; import org.springframework.stereotype.Repository; import java.util.*;
-@Repository public class JdbcPortfolioRepository implements PortfolioRepository { private final JdbcTemplate jdbc; public JdbcPortfolioRepository(JdbcTemplate jdbc){this.jdbc=jdbc;}
- public Map<String,Object> dashboard(){Map<String,Object> m=new LinkedHashMap<>();m.put("companies",jdbc.queryForObject("SELECT count(*) FROM companies",Long.class));m.put("activeMatters",jdbc.queryForObject("SELECT count(*) FROM matters WHERE status <> 'CLOSED'",Long.class));m.put("pendingObligations",jdbc.queryForObject("SELECT count(*) FROM obligations WHERE status <> 'DONE'",Long.class));m.put("openTasks",jdbc.queryForObject("SELECT count(*) FROM tasks WHERE status <> 'DONE'",Long.class));m.put("documents",jdbc.queryForObject("SELECT count(*) FROM documents",Long.class));return m;}
- public List<Map<String,Object>> companies(){return jdbc.queryForList("SELECT id,legal_name AS name,tax_id,segment,status,annual_revenue FROM companies ORDER BY id");}
- public List<Map<String,Object>> matters(){return jdbc.queryForList("SELECT m.id,m.title,m.area,m.status,m.priority,m.next_deadline,m.value,u.full_name AS responsible,CASE WHEN m.client_type='COMPANY' THEN c.legal_name ELSE i.full_name END AS client FROM matters m LEFT JOIN users u ON u.id=m.responsible_user_id LEFT JOIN companies c ON m.client_type='COMPANY' AND c.id=m.client_id LEFT JOIN individual_clients i ON m.client_type='INDIVIDUAL' AND i.id=m.client_id ORDER BY m.next_deadline NULLS LAST");}
- public List<Map<String,Object>> obligations(){return jdbc.queryForList("SELECT o.id,o.title,o.obligation_type,o.due_date,o.status,o.amount,c.legal_name AS company,u.full_name AS responsible FROM obligations o JOIN companies c ON c.id=o.company_id LEFT JOIN users u ON u.id=o.responsible_user_id ORDER BY o.due_date");}
- public List<Map<String,Object>> documents(){return jdbc.queryForList("SELECT d.id,d.title,d.category,d.status,d.created_at,c.legal_name AS company,m.title AS matter,u.full_name AS owner,d.content FROM documents d LEFT JOIN companies c ON c.id=d.company_id LEFT JOIN matters m ON m.id=d.matter_id LEFT JOIN users u ON u.id=d.owner_user_id ORDER BY d.created_at DESC");}
- public List<Map<String,Object>> tasks(){return jdbc.queryForList("SELECT t.id,t.title,t.due_date,t.status,t.priority,u.full_name AS assigned FROM tasks t LEFT JOIN users u ON u.id=t.assigned_user_id ORDER BY t.due_date");}
- public List<Map<String,Object>> audit(){return jdbc.queryForList("SELECT a.id,a.action,a.resource,a.details,a.created_at,u.full_name AS actor FROM audit_events a LEFT JOIN users u ON u.id=a.actor_user_id ORDER BY a.created_at DESC");}
- public List<Map<String,Object>> search(String term){String sql="SELECT id,legal_name AS name,tax_id,segment,status FROM companies WHERE legal_name ILIKE '%"+term+"%' OR tax_id LIKE '%"+term+"%' UNION ALL SELECT id,full_name AS name,document,'Pessoa física' AS segment,status FROM individual_clients WHERE full_name ILIKE '%"+term+"%'";return jdbc.queryForList(sql);}
- public Map<String,Object> company(long id){return jdbc.queryForMap("SELECT c.*,o.name AS organization FROM companies c JOIN organizations o ON o.id=c.organization_id WHERE c.id=?",id);}
- public void updateMatter(long id,String status){jdbc.update("UPDATE matters SET status=? WHERE id=?",status,id);}
- public void insertDocument(long orgId,Long matterId,Long companyId,String title,String category,String content,String user){Long owner=jdbc.queryForObject("SELECT id FROM users WHERE username=?",Long.class,user);jdbc.update("INSERT INTO documents(organization_id,matter_id,company_id,title,category,content,owner_user_id) VALUES(?,?,?,?,?,?,?)",orgId,matterId,companyId,title,category,content,owner);}
+
+import com.nexuslegal.api.domain.PortfolioRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+import java.util.*;
+
+@Repository
+public class JdbcPortfolioRepository implements PortfolioRepository {
+    private final JdbcTemplate jdbc;
+
+    public JdbcPortfolioRepository(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
+
+    public Map<String, Object> dashboard() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("companies", jdbc.queryForObject("SELECT count(*) FROM companies", Long.class));
+        m.put("activeMatters",
+                jdbc.queryForObject("SELECT count(*) FROM matters WHERE status <> 'CLOSED'", Long.class));
+        m.put("pendingObligations",
+                jdbc.queryForObject("SELECT count(*) FROM obligations WHERE status <> 'DONE'", Long.class));
+        m.put("openTasks", jdbc.queryForObject("SELECT count(*) FROM tasks WHERE status <> 'DONE'", Long.class));
+        m.put("documents", jdbc.queryForObject("SELECT count(*) FROM documents", Long.class));
+        return m;
+    }
+
+    public List<Map<String, Object>> companies() {
+        return jdbc.queryForList(
+                "SELECT id,legal_name AS name,tax_id,segment,status,annual_revenue FROM companies ORDER BY id");
+    }
+
+    public List<Map<String, Object>> matters() {
+        return jdbc.queryForList(
+                "SELECT m.id,m.title,m.area,m.status,m.priority,m.next_deadline,m.value,u.full_name AS responsible,CASE WHEN m.client_type='COMPANY' THEN c.legal_name ELSE i.full_name END AS client FROM matters m LEFT JOIN users u ON u.id=m.responsible_user_id LEFT JOIN companies c ON m.client_type='COMPANY' AND c.id=m.client_id LEFT JOIN individual_clients i ON m.client_type='INDIVIDUAL' AND i.id=m.client_id ORDER BY m.next_deadline NULLS LAST");
+    }
+
+    public List<Map<String, Object>> obligations() {
+        return jdbc.queryForList(
+                "SELECT o.id,o.title,o.obligation_type,o.due_date,o.status,o.amount,c.legal_name AS company,u.full_name AS responsible FROM obligations o JOIN companies c ON c.id=o.company_id LEFT JOIN users u ON u.id=o.responsible_user_id ORDER BY o.due_date");
+    }
+
+    public List<Map<String, Object>> documents() {
+        return jdbc.queryForList(
+                "SELECT d.id,d.title,d.category,d.status,d.created_at,c.legal_name AS company,m.title AS matter,u.full_name AS owner,d.content FROM documents d LEFT JOIN companies c ON c.id=d.company_id LEFT JOIN matters m ON m.id=d.matter_id LEFT JOIN users u ON u.id=d.owner_user_id ORDER BY d.created_at DESC");
+    }
+
+    public List<Map<String, Object>> tasks() {
+        return jdbc.queryForList(
+                "SELECT t.id,t.title,t.due_date,t.status,t.priority,u.full_name AS assigned FROM tasks t LEFT JOIN users u ON u.id=t.assigned_user_id ORDER BY t.due_date");
+    }
+
+    public List<Map<String, Object>> audit() {
+        return jdbc.queryForList(
+                "SELECT a.id,a.action,a.resource,a.details,a.created_at,u.full_name AS actor FROM audit_events a LEFT JOIN users u ON u.id=a.actor_user_id ORDER BY a.created_at DESC");
+    }
+
+    public List<Map<String, Object>> search(String term) {
+        String sql = "SELECT id,legal_name AS name,tax_id,segment,status FROM companies WHERE legal_name ILIKE '%"
+                + term + "%' OR tax_id LIKE '%" + term
+                + "%' UNION ALL SELECT id,full_name AS name,document,'Pessoa física' AS segment,status FROM individual_clients WHERE full_name ILIKE '%"
+                + term + "%'";
+        return jdbc.queryForList(sql);
+    }
+
+    public Map<String, Object> company(long id) {
+        return jdbc.queryForMap(
+                "SELECT c.*,o.name AS organization FROM companies c JOIN organizations o ON o.id=c.organization_id WHERE c.id=?",
+                id);
+    }
+
+    public void updateMatter(long id, String status) {
+        jdbc.update("UPDATE matters SET status=? WHERE id=?", status, id);
+    }
+
+    public void insertDocument(long orgId, Long matterId, Long companyId, String title, String category, String content,
+            String user) {
+        Long owner = jdbc.queryForObject("SELECT id FROM users WHERE username=?", Long.class, user);
+        jdbc.update(
+                "INSERT INTO documents(organization_id,matter_id,company_id,title,category,content,owner_user_id) VALUES(?,?,?,?,?,?,?)",
+                orgId, matterId, companyId, title, category, content, owner);
+    }
 }
